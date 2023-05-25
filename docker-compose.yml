@@ -1,0 +1,43 @@
+version: "3.9"
+services:
+  dump1090:
+    image: "jraviles/dump1090:latest"
+    devices:
+      - "/dev/bus/usb:/dev/bus/usb"
+    ports:
+      - "8080:8080"
+
+  dump1090-to-mqtt:
+    build:
+      context: dump1090-to-mqtt
+    command: >
+      bash -c "while !</dev/tcp/mosquitto/1883; do sleep 1; done
+      && dump1090-to-mqtt"
+    depends_on:
+      - mosquitto
+      - dump1090
+
+  mosquitto:
+    hostname: mosquitto
+    build:
+      context: mosquitto
+      dockerfile: Dockerfile
+    expose:
+      - "1883" # MQTT
+      - "9001" # Websocket
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    command: >
+      /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+    networks:
+      - default
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+#      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./web:/usr/share/nginx/html
+    restart: always
